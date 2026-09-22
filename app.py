@@ -1,51 +1,6 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
-from datetime import date
-import uuid
+from flask import Flask, request, render_template
 
 app = Flask(__name__)
-app.secret_key = "change-this-secret-key"
-
-# Demo flight database
-FLIGHTS = [
-    {
-        "id": "AI101",
-        "airline": "Air India",
-        "from": "Hyderabad",
-        "to": "Delhi",
-        "departure": "08:30",
-        "arrival": "10:45",
-        "price": 5200
-    },
-    {
-        "id": "6E205",
-        "airline": "IndiGo",
-        "from": "Hyderabad",
-        "to": "Delhi",
-        "departure": "11:15",
-        "arrival": "13:30",
-        "price": 4800
-    },
-    {
-        "id": "UK810",
-        "airline": "Vistara",
-        "from": "Hyderabad",
-        "to": "Mumbai",
-        "departure": "14:00",
-        "arrival": "15:40",
-        "price": 4500
-    },
-    {
-        "id": "6E401",
-        "airline": "IndiGo",
-        "from": "Mumbai",
-        "to": "Bengaluru",
-        "departure": "17:30",
-        "arrival": "19:15",
-        "price": 3900
-    }
-]
-
-BOOKINGS = {}
 
 
 @app.route("/")
@@ -53,102 +8,69 @@ def home():
     return render_template("index.html")
 
 
-@app.route("/search", methods=["POST"])
-def search():
-    origin = request.form.get("origin", "").strip()
-    destination = request.form.get("destination", "").strip()
-    departure_date = request.form.get("departure_date", "").strip()
-    passengers = request.form.get("passengers", "1")
+@app.route("/book-flight", methods=["POST"])
+def book_flight():
+    origin = request.form.get("from")
+    destination = request.form.get("to")
+    departure = request.form.get("departure")
+    return_date = request.form.get("return")
+    passengers = request.form.get("passengers")
+    travel_class = request.form.get("class")
 
-    try:
-        passengers = int(passengers)
-    except ValueError:
-        passengers = 1
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Flight Search</title>
+        <style>
+            body {{
+                font-family: Arial;
+                background: #eef4f8;
+                padding: 40px;
+            }}
 
-    if passengers < 1 or passengers > 9:
-        flash("Passengers must be between 1 and 9.")
-        return redirect(url_for("home"))
+            .result {{
+                max-width: 600px;
+                margin: auto;
+                background: white;
+                padding: 30px;
+                border-radius: 15px;
+                box-shadow: 0 5px 20px rgba(0,0,0,.15);
+            }}
 
-    if not origin or not destination or not departure_date:
-        flash("Please fill in all required fields.")
-        return redirect(url_for("home"))
+            h1 {{
+                color: #0077cc;
+            }}
+        </style>
+    </head>
 
-    try:
-        selected_date = date.fromisoformat(departure_date)
+    <body>
+        <div class="result">
 
-        if selected_date < date.today():
-            flash("Departure date cannot be in the past.")
-            return redirect(url_for("home"))
+            <h1>✈️ Flight Search</h1>
 
-    except ValueError:
-        flash("Invalid departure date.")
-        return redirect(url_for("home"))
+            <p><strong>From:</strong> {origin}</p>
+            <p><strong>To:</strong> {destination}</p>
+            <p><strong>Departure:</strong> {departure}</p>
+            <p><strong>Return:</strong> {return_date or "One way"}</p>
+            <p><strong>Passengers:</strong> {passengers}</p>
+            <p><strong>Class:</strong> {travel_class}</p>
 
-    results = [
-        flight for flight in FLIGHTS
-        if flight["from"].lower() == origin.lower()
-        and flight["to"].lower() == destination.lower()
-    ]
+            <hr>
 
-    return render_template(
-        "results.html",
-        flights=results,
-        origin=origin,
-        destination=destination,
-        departure_date=departure_date,
-        passengers=passengers
-    )
+            <h2>Search received successfully ✅</h2>
 
+            <a href="/">Search another flight</a>
 
-@app.route("/book/<flight_id>", methods=["POST"])
-def book(flight_id):
-    flight = next(
-        (f for f in FLIGHTS if f["id"] == flight_id),
-        None
-    )
-
-    if not flight:
-        flash("Flight not found.")
-        return redirect(url_for("home"))
-
-    name = request.form.get("name", "").strip()
-    email = request.form.get("email", "").strip()
-    phone = request.form.get("phone", "").strip()
-    departure_date = request.form.get("departure_date", "")
-    passengers = request.form.get("passengers", "1")
-
-    if not name or not email or not phone:
-        flash("Please enter your name, email and phone number.")
-        return redirect(url_for("home"))
-
-    try:
-        passengers = int(passengers)
-        if passengers < 1 or passengers > 9:
-            raise ValueError
-    except ValueError:
-        flash("Invalid passenger count.")
-        return redirect(url_for("home"))
-
-    booking_id = "BK-" + uuid.uuid4().hex[:8].upper()
-
-    total_price = flight["price"] * passengers
-
-    BOOKINGS[booking_id] = {
-        "booking_id": booking_id,
-        "flight": flight,
-        "name": name,
-        "email": email,
-        "phone": phone,
-        "departure_date": departure_date,
-        "passengers": passengers,
-        "total_price": total_price
-    }
-
-    return render_template(
-        "confirmation.html",
-        booking=BOOKINGS[booking_id]
-    )
+        </div>
+    </body>
+    </html>
+    """
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=8080,
+        debug=True
+    )
